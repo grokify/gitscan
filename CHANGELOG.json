@@ -1,0 +1,34 @@
+{
+  "ir_version": "1.0",
+  "project": "gitscan",
+  "repository": "https://github.com/grokify/gitscan",
+  "versioning": "semver",
+  "commit_convention": "conventional",
+  "maintainers": ["grokify"],
+  "releases": [
+    {
+      "version": "v0.1.0",
+      "date": "2026-01-17",
+      "highlights": [
+        { "description": "CLI tool to scan multiple Git repositories and identify repos needing attention" },
+        { "description": "Zero external dependencies - uses only Go standard library" }
+      ],
+      "added": [
+        { "description": "Repository scanner that checks for uncommitted changes using `git status --porcelain`" },
+        { "description": "Replace directive detection in go.mod files (both single-line and block format)" },
+        { "description": "Module name mismatch detection comparing go.mod module path with directory name" },
+        { "description": "Dependency filtering with `-dep` flag to find repos depending on a specific module" },
+        { "description": "Recursive nested go.mod search with `-recurse` flag for monorepo support" },
+        { "description": "Progress bar with percentage, count, and current repo name during scanning" },
+        { "description": "Two output formats: human-readable list (default) and compact markdown table" },
+        { "description": "Summary statistics showing counts of uncommitted changes, replace directives, and mismatches" },
+        { "description": "Tilde expansion for home directory paths" },
+        { "description": "Support for positional argument or `-dir` flag for directory path" }
+      ],
+      "documentation": [
+        { "description": "README with installation, usage, flags reference, and examples" },
+        { "description": "MIT license" }
+      ]
+    }
+  ]
+}
