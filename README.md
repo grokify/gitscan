@@ -1,5 +1,11 @@
 # gitscan
 
+[![Build Status][build-status-svg]][build-status-url]
+[![Lint Status][lint-status-svg]][lint-status-url]
+[![Go Report Card][goreport-svg]][goreport-url]
+[![Docs][docs-godoc-svg]][docs-godoc-url]
+[![Visualization][viz-svg]][viz-url]
+
 A CLI tool to scan multiple Git repositories and identify repos that need attention. Helps prioritize which repos to update, commit, and push.
 
 ## Installation
@@ -165,3 +171,18 @@ With `-recurse`, nested modules are also checked and displayed:
 ## License
 
 MIT
+
+ [build-status-svg]: https://github.com/grokify/gitscan/actions/workflows/ci.yaml/badge.svg?branch=main
+ [build-status-url]: https://github.com/grokify/gitscan/actions/workflows/ci.yaml
+ [lint-status-svg]: https://github.com/grokify/gitscan/actions/workflows/lint.yaml/badge.svg?branch=main
+ [lint-status-url]: https://github.com/grokify/gitscan/actions/workflows/lint.yaml
+ [goreport-svg]: https://goreportcard.com/badge/github.com/grokify/gitscan
+ [goreport-url]: https://goreportcard.com/report/github.com/grokify/gitscan
+ [docs-godoc-svg]: https://pkg.go.dev/badge/github.com/grokify/gitscan
+ [docs-godoc-url]: https://pkg.go.dev/github.com/grokify/gitscan
+ [viz-svg]: https://img.shields.io/badge/visualizaton-Go-blue.svg
+ [viz-url]: https://mango-dune-07a8b7110.1.azurestaticapps.net/?repo=grokify%2Fgitscan
+ [loc-svg]: https://tokei.rs/b1/github/grokify/gitscan
+ [repo-url]: https://github.com/grokify/gitscan
+ [license-svg]: https://img.shields.io/badge/license-MIT-blue.svg
+ [license-url]: https://github.com/grokify/gitscan/blob/master/LICENSE
