@@ -1,0 +1,243 @@
+{
+  "ir_version": "1.0",
+  "project": "gitscan",
+  "repository": "https://github.com/grokify/gitscan",
+
+  "legend": {
+    "completed": {"emoji": "✅", "description": "Completed"},
+    "in_progress": {"emoji": "🚧", "description": "In Progress"},
+    "planned": {"emoji": "📋", "description": "Planned"},
+    "future": {"emoji": "💡", "description": "Under Consideration"}
+  },
+
+  "areas": [
+    {"id": "core", "name": "Core", "priority": 1},
+    {"id": "cli", "name": "CLI", "priority": 2},
+    {"id": "scanner", "name": "Scanner", "priority": 3},
+    {"id": "testing", "name": "Testing", "priority": 4}
+  ],
+
+  "phases": [
+    {
+      "id": "v0.1",
+      "name": "v0.1.0 - Initial Release",
+      "status": "completed",
+      "order": 1,
+      "description": "Core scanning functionality for Git repositories and Go modules"
+    },
+    {
+      "id": "v0.2",
+      "name": "v0.2.0 - Quality & Robustness",
+      "status": "planned",
+      "order": 2,
+      "description": "Test coverage, error handling improvements, and bug fixes"
+    },
+    {
+      "id": "v0.3",
+      "name": "v0.3.0 - Enhanced UX",
+      "status": "planned",
+      "order": 3,
+      "description": "CLI improvements and better user experience"
+    },
+    {
+      "id": "future",
+      "name": "Future",
+      "status": "future",
+      "order": 99,
+      "description": "Ideas under consideration"
+    }
+  ],
+
+  "items": [
+    {
+      "id": "initial-scanner",
+      "title": "Repository scanner package",
+      "description": "Core scanning logic for Git repos and go.mod analysis",
+      "status": "completed",
+      "version": "0.1.0",
+      "phase": "v0.1",
+      "area": "scanner",
+      "type": "Added",
+      "priority": "high"
+    },
+    {
+      "id": "cli-flags",
+      "title": "CLI with configurable flags",
+      "description": "Flags for dir, format, show-clean, summary, dep, and recurse",
+      "status": "completed",
+      "version": "0.1.0",
+      "phase": "v0.1",
+      "area": "cli",
+      "type": "Added",
+      "priority": "high"
+    },
+    {
+      "id": "progress-bar",
+      "title": "Progress bar during scanning",
+      "description": "Visual progress indicator with percentage and current repo name",
+      "status": "completed",
+      "version": "0.1.0",
+      "phase": "v0.1",
+      "area": "cli",
+      "type": "Added",
+      "priority": "medium"
+    },
+    {
+      "id": "output-formats",
+      "title": "List and table output formats",
+      "description": "Human-readable list format and compact markdown table format",
+      "status": "completed",
+      "version": "0.1.0",
+      "phase": "v0.1",
+      "area": "cli",
+      "type": "Added",
+      "priority": "medium"
+    },
+    {
+      "id": "dep-filter",
+      "title": "Dependency filtering",
+      "description": "Filter repos by module dependency path",
+      "status": "completed",
+      "version": "0.1.0",
+      "phase": "v0.1",
+      "area": "scanner",
+      "type": "Added",
+      "priority": "medium"
+    },
+    {
+      "id": "nested-gomod",
+      "title": "Nested go.mod detection",
+      "description": "Recursive search for go.mod files in monorepos",
+      "status": "completed",
+      "version": "0.1.0",
+      "phase": "v0.1",
+      "area": "scanner",
+      "type": "Added",
+      "priority": "medium"
+    },
+    {
+      "id": "unit-tests",
+      "title": "Unit tests for scanner package",
+      "description": "Test coverage for go.mod parsing, module matching, and repo analysis",
+      "status": "planned",
+      "target_version": "0.2.0",
+      "phase": "v0.2",
+      "area": "testing",
+      "type": "Added",
+      "priority": "high"
+    },
+    {
+      "id": "walkdir-error-handling",
+      "title": "Improve error handling in findGoModFiles",
+      "description": "Handle WalkDir errors explicitly instead of silently ignoring (scanner.go:172)",
+      "status": "planned",
+      "target_version": "0.2.0",
+      "phase": "v0.2",
+      "area": "scanner",
+      "type": "Fixed",
+      "priority": "medium"
+    },
+    {
+      "id": "empty-path-check",
+      "title": "Guard against empty path in tilde expansion",
+      "description": "Add explicit check before accessing dirPath[0] in main.go:51",
+      "status": "planned",
+      "target_version": "0.2.0",
+      "phase": "v0.2",
+      "area": "cli",
+      "type": "Fixed",
+      "priority": "low"
+    },
+    {
+      "id": "go-sum",
+      "title": "Add go.sum file",
+      "description": "Include go.sum for module verification (empty with zero dependencies)",
+      "status": "planned",
+      "target_version": "0.2.0",
+      "phase": "v0.2",
+      "area": "core",
+      "type": "Added",
+      "priority": "low"
+    },
+    {
+      "id": "version-flag",
+      "title": "Add -version flag",
+      "description": "Display version information with build details",
+      "status": "planned",
+      "target_version": "0.3.0",
+      "phase": "v0.3",
+      "area": "cli",
+      "type": "Added",
+      "priority": "medium"
+    },
+    {
+      "id": "help-improvements",
+      "title": "Enhanced help output",
+      "description": "More detailed -help output with examples and usage patterns",
+      "status": "planned",
+      "target_version": "0.3.0",
+      "phase": "v0.3",
+      "area": "cli",
+      "type": "Changed",
+      "priority": "low"
+    },
+    {
+      "id": "terminal-width",
+      "title": "Terminal width detection for progress bar",
+      "description": "Use actual terminal width instead of hardcoded 100 spaces for cleanup",
+      "status": "planned",
+      "target_version": "0.3.0",
+      "phase": "v0.3",
+      "area": "cli",
+      "type": "Changed",
+      "priority": "low"
+    },
+    {
+      "id": "parallel-scanning",
+      "title": "Parallel repository scanning",
+      "description": "Concurrent analysis for improved performance on large directory sets",
+      "status": "future",
+      "phase": "future",
+      "area": "scanner",
+      "type": "Added",
+      "priority": "medium"
+    },
+    {
+      "id": "unpushed-commits",
+      "title": "Detect unpushed commits",
+      "description": "Check if local branch is ahead of remote",
+      "status": "future",
+      "phase": "future",
+      "area": "scanner",
+      "type": "Added",
+      "priority": "medium"
+    },
+    {
+      "id": "stale-branches",
+      "title": "Detect stale branches",
+      "description": "Identify repos with old unmerged branches",
+      "status": "future",
+      "phase": "future",
+      "area": "scanner",
+      "type": "Added",
+      "priority": "low"
+    }
+  ],
+
+  "sections": [
+    {
+      "id": "overview",
+      "title": "Overview",
+      "order": 1,
+      "content": [
+        {"type": "text", "value": "gitscan is a CLI tool to scan multiple Git repositories and identify repos that need attention. It helps prioritize which repos to update, commit, and push."}
+      ]
+    }
+  ],
+
+  "version_history": [
+    {"version": "0.1.0", "date": "2026-01-17", "status": "completed", "summary": "Initial release with core scanning functionality"},
+    {"version": "0.2.0", "date": null, "status": "planned", "summary": "Quality improvements and test coverage"},
+    {"version": "0.3.0", "date": null, "status": "planned", "summary": "Enhanced CLI and UX"}
+  ]
+}
