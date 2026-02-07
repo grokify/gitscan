@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/grokify/gitscan/scanner"
+	"github.com/grokify/mogo/fmt/progress"
 )
 
 const progressBarWidth = 40
@@ -85,20 +85,12 @@ func main() {
 	}
 	fmt.Printf("Found %d directories to scan\n\n", total)
 
+	// Progress renderer
+	renderer := progress.NewSingleStageRenderer(os.Stdout).WithBarWidth(progressBarWidth)
+
 	// Progress callback
 	progressFn := func(current, total int, name string) {
-		percent := float64(current) / float64(total) * 100
-		filled := int(float64(progressBarWidth) * float64(current) / float64(total))
-		bar := strings.Repeat("█", filled) + strings.Repeat("░", progressBarWidth-filled)
-
-		// Truncate name if too long
-		displayName := name
-		if len(displayName) > 30 {
-			displayName = displayName[:27] + "..."
-		}
-
-		// \r returns to start of line, overwriting previous output
-		fmt.Printf("\r[%s] %3.0f%% (%d/%d) %-30s", bar, percent, current, total, displayName)
+		renderer.Update(current, total, name)
 	}
 
 	opts := scanner.ScanOptions{
@@ -110,9 +102,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Clear the progress line and move to next line
-	fmt.Printf("\r%s\r", strings.Repeat(" ", 100))
-	fmt.Println("Scan complete!")
+	// Clear the progress line and show completion
+	renderer.Done("Scan complete!")
 
 	// Display results based on format
 	var (
