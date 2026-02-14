@@ -26,19 +26,22 @@ go build -o gitscan .
 
 ```bash
 gitscan <directory>
-gitscan -dir <directory>
+gitscan -d <directory>
 ```
 
 ### Flags
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `-dir` | (required) | Directory containing repos to scan |
-| `-format` | `list` | Output format: `list` or `table` |
-| `-show-clean` | `false` | Show repos with no issues |
-| `-summary` | `true` | Show summary at the end |
-| `-dep` | (none) | Filter repos by dependency (module path) |
-| `-recurse` | `false` | Recursively search for nested go.mod files |
+| Flag | Short | Default | Description |
+|------|-------|---------|-------------|
+| `--dir` | `-d` | (required) | Directory containing repos to scan |
+| `--format` | `-f` | `list` | Output format: `list` or `table` |
+| `--since` | `-s` | (none) | Filter repos modified within duration (e.g., `7d`, `2w`, `1m`) |
+| `--recurse` | `-r` | `false` | Recursively search for nested go.mod files |
+| `--dep` | | (none) | Filter repos by dependency (module path) |
+| `--show-clean` | | `false` | Show repos with no issues |
+| `--summary` | | `true` | Show summary at the end |
+| `--help` | `-h` | | Show help |
+| `--version` | `-v` | | Show version |
 
 ### Examples
 
@@ -46,14 +49,64 @@ gitscan -dir <directory>
 # Scan all repos in a directory
 gitscan ~/go/src/github.com/grokify
 
+# Filter repos modified in last 7 days
+gitscan -s 7d ~/go/src/github.com/grokify
+
 # Output as markdown table (compact view)
-gitscan -format table ~/go/src/github.com/grokify
+gitscan -f table ~/go/src/github.com/grokify
 
 # Show all repos including clean ones
-gitscan -show-clean ~/projects
+gitscan --show-clean ~/projects
 
-# Scan without summary
-gitscan -summary=false ~/repos
+# Find repos depending on a module
+gitscan --dep github.com/grokify/mogo ~/go/src/github.com/grokify
+```
+
+## Order Subcommand
+
+The `order` subcommand shows repos in topological dependency order - dependencies first, then dependents. This helps determine the correct order to update and release Go modules.
+
+```bash
+gitscan order <directory>
+```
+
+### Order Flags
+
+| Flag | Short | Default | Description |
+|------|-------|---------|-------------|
+| `--dir` | `-d` | (required) | Directory containing repos to scan |
+| `--since` | `-s` | (none) | Filter repos modified within duration |
+| `--transitive` | `-t` | `false` | Include repos that transitively depend on modified repos |
+| `--unpushed` | `-u` | `false` | Only show repos with uncommitted changes or unpushed commits |
+
+### Order Examples
+
+```bash
+# Show all repos in dependency order
+gitscan order ~/go/src/github.com/grokify
+
+# Repos modified in last 7 days, in dependency order
+gitscan order -s 7d ~/go/src/github.com/grokify
+
+# Include transitive dependents (repos depending on modified repos)
+gitscan order -s 7d -t ~/go/src/github.com/grokify
+
+# Only show repos that need to be pushed
+gitscan order -s 7d -t -u ~/go/src/github.com/grokify
+```
+
+### Order Output
+
+```
+Update order (dependencies first):
+----------------------------------
+  1. mogo                  2026-02-08 12:28
+  2. gogithub              2026-02-07 08:09 (depends on: mogo)
+  3. goauth                2026-02-09 19:38 (depends on: mogo)
+  4. gogoogle              2026-02-09 17:31 (depends on: goauth, mogo)
+  5. go-aha                2026-02-09 02:15 (depends on: goauth, gogoogle, mogo)
+
+Total: 5 repos in dependency order
 ```
 
 ## Checks Performed
@@ -65,6 +118,8 @@ For each direct subdirectory, gitscan checks:
 2. **Replace Directives** - Parses `go.mod` for `replace` directives (both single-line and block format), which may indicate local development dependencies that shouldn't be committed
 
 3. **Module Name Mismatch** - Compares the module name in `go.mod` with the directory name to identify renamed or copied repos
+
+4. **Unpushed Commits** - Detects commits that haven't been pushed to remote (with `-u` flag)
 
 ## Output Format
 
@@ -79,26 +134,17 @@ Found 584 directories to scan
 
 ### List Format (default)
 
-Repos with issues are marked with `[!]`, clean repos with `[OK]`:
+Repos are shown in a numbered list with issues and internal dependencies:
 
 ```
-Scan complete!
+  1. mogo                  2026-02-08 12:28
+  2. gogithub              2026-02-07 08:09 (depends on: mogo)
+  3. my-service            2026-02-10 15:30 [uncommitted, replace:2]
 
-[!] my-repo
-    - Has uncommitted changes
-    - Has replace directives (2)
-    - Module name mismatch: github.com/other/name
-
-[OK] clean-repo
-
-----------------------------------------
-Summary: 100 repos scanned, 25 with issues
-  - Uncommitted changes: 20
-  - Replace directives:  5
-  - Module mismatches:   3
+Summary: 100 repos scanned, 25 modified within 7d
 ```
 
-### Table Format (`-format table`)
+### Table Format (`-f table`)
 
 Compact markdown table with one repo per row:
 
@@ -125,39 +171,18 @@ When making breaking changes to a library, find all local repos that depend on i
 
 ```bash
 # Find repos depending on a module
-gitscan -dep github.com/grokify/gogithub ~/go/src/github.com/grokify
+gitscan --dep github.com/grokify/gogithub ~/go/src/github.com/grokify
 
 # Include nested go.mod files (monorepos, nested modules)
-gitscan -dep github.com/grokify/gogithub -recurse ~/go/src/github.com/grokify
+gitscan --dep github.com/grokify/gogithub -r ~/go/src/github.com/grokify
 
 # Output as table
-gitscan -dep github.com/grokify/mogo -format table ~/go/src/github.com/grokify
+gitscan --dep github.com/grokify/mogo -f table ~/go/src/github.com/grokify
 ```
 
-### Dependency Search Output
+## Performance
 
-When using `-dep`, only repos containing that dependency are shown:
-
-```
-[DEP] my-service
-    - Module: github.com/grokify/my-service
-
-[DEP] another-project
-    - Module: github.com/grokify/another-project
-
-----------------------------------------
-Summary: 100 repos scanned, 2 depend on github.com/grokify/gogithub
-```
-
-With `-recurse`, nested modules are also checked and displayed:
-
-```
-[DEP] monorepo
-    - Module: github.com/grokify/monorepo
-    - Nested modules:
-      - github.com/grokify/monorepo/cmd/cli (cmd/cli/go.mod)
-      - github.com/grokify/monorepo/pkg/util (pkg/util/go.mod)
-```
+gitscan uses parallel scanning with a goroutine worker pool (defaults to GOMAXPROCS workers) for fast scanning of large directory trees. Expensive operations like modification time calculation and unpushed commit detection are performed lazily only when needed.
 
 ## Use Cases
 
@@ -166,6 +191,7 @@ With `-recurse`, nested modules are also checked and displayed:
 - **Repo hygiene**: Detect copied/renamed repos with mismatched module names
 - **Breaking changes**: Find all repos to update before releasing library changes
 - **Security patches**: Locate repos using vulnerable dependencies
+- **Release ordering**: Determine correct order to update and release interdependent modules
 - **Prioritization**: Focus on repos that need immediate attention
 
 ## License
