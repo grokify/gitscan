@@ -10,27 +10,27 @@
       "version": "v0.3.0",
       "date": "2026-02-14",
       "highlights": [
-        { "description": "Git backend abstraction with go-git and CLI implementations" },
-        { "description": "Optional `--go-git` flag for pure Go git operations (no process spawning)" }
+        { "description": "Git backend abstraction with go-git and CLI implementations", "commit": "4e2ea58" },
+        { "description": "Optional `--go-git` flag for pure Go git operations (no process spawning)", "commit": "4e2ea58" }
       ],
       "added": [
-        { "description": "Git backend interface with `GitBackend`, `GoGitBackend`, and `CLIGitBackend` types" },
-        { "description": "`--go-git` flag to use go-git library instead of git CLI" },
-        { "description": "Go-git integration for pure Go git operations without external process spawning" }
+        { "description": "Git backend interface with `GitBackend`, `GoGitBackend`, and `CLIGitBackend` types", "commit": "4e2ea58" },
+        { "description": "`--go-git` flag to use go-git library instead of git CLI", "commit": "4e2ea58" },
+        { "description": "Go-git integration for pure Go git operations without external process spawning", "commit": "4e2ea58" }
       ],
       "changed": [
-        { "description": "Git CLI is now the default backend (faster and more compatible)" },
-        { "description": "Scanner package uses `GitBackend` interface for pluggable git implementations" }
+        { "description": "Git CLI is now the default backend (faster and more compatible)", "commit": "4e2ea58" },
+        { "description": "Scanner package uses `GitBackend` interface for pluggable git implementations", "commit": "4e2ea58" }
       ],
       "performance": [
-        { "description": "Git CLI backend: ~2.5s for 600 repos (default, faster)" },
-        { "description": "Go-git backend: ~10s for 600 repos (optional, pure Go)" }
+        { "description": "Git CLI backend: ~2.5s for 600 repos (default, faster)", "commit": "4e2ea58" },
+        { "description": "Go-git backend: ~10s for 600 repos (optional, pure Go)", "commit": "4e2ea58" }
       ],
       "dependencies": [
-        { "description": "Added `github.com/go-git/go-git/v5` for pure Go git operations" }
+        { "description": "Added `github.com/go-git/go-git/v5` for pure Go git operations", "commit": "4e2ea58" }
       ],
       "documentation": [
-        { "description": "Updated README with `--go-git` flag and backend comparison table" }
+        { "description": "Updated README with `--go-git` flag and backend comparison table", "commit": "f9e8523" }
       ]
     },
     {
