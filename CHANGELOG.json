@@ -7,27 +7,58 @@
   "maintainers": ["grokify"],
   "releases": [
     {
+      "version": "v0.2.0",
+      "date": "2026-02-14",
+      "highlights": [
+        { "description": "New `order` subcommand for topological dependency ordering", "commit": "104f2a2" },
+        { "description": "Time-based filtering with `-since` flag", "commit": "33af0ef" },
+        { "description": "Parallel scanning for significantly faster performance", "commit": "7f8ff17" }
+      ],
+      "added": [
+        { "description": "New `order` subcommand to show repos in dependency order (update dependencies first)", "commit": "104f2a2" },
+        { "description": "Topological sort using Kahn's algorithm for dependency-aware ordering", "commit": "7f8ff17" },
+        { "description": "Time-based filtering with `-since` flag supporting `7d`, `2w`, `1m` duration formats", "commit": "33af0ef" },
+        { "description": "Transitive dependency tracking with `-t` flag to include repos that depend on modified repos", "commit": "7f8ff17" },
+        { "description": "Unpushed commit detection with `-u` flag to filter repos needing push", "commit": "7f8ff17" },
+        { "description": "Internal dependency display showing `(depends on: x, y)` in output", "commit": "33af0ef" },
+        { "description": "Latest modification time tracking per repository", "commit": "7f8ff17" },
+        { "description": "Parallel scanning using goroutine worker pool (uses GOMAXPROCS workers)", "commit": "7f8ff17" },
+        { "description": "Lazy evaluation of expensive operations (mod time, unpushed checks)", "commit": "7f8ff17" },
+        { "description": "Aligned output formatting with consistent column widths", "commit": "33af0ef" }
+      ],
+      "changed": [
+        { "description": "Migrated CLI from standard `flag` package to Cobra for better UX", "commit": "33af0ef" },
+        { "description": "Added short flags: `-d` (dir), `-f` (format), `-r` (recurse), `-s` (since)", "commit": "33af0ef" },
+        { "description": "Output now shows numbered list with alphabetical sorting", "commit": "33af0ef" },
+        { "description": "Refactored scanner package with `ScanOptions` for configurable behavior", "commit": "7f8ff17" }
+      ],
+      "dependencies": [
+        { "description": "Added `github.com/spf13/cobra` for CLI framework", "commit": "33af0ef" },
+        { "description": "Added `github.com/grokify/mogo/fmt/progress` for progress bar rendering", "commit": "9c27c2a" }
+      ]
+    },
+    {
       "version": "v0.1.0",
       "date": "2026-01-17",
       "highlights": [
-        { "description": "CLI tool to scan multiple Git repositories and identify repos needing attention" },
-        { "description": "Zero external dependencies - uses only Go standard library" }
+        { "description": "CLI tool to scan multiple Git repositories and identify repos needing attention", "commit": "97d0739" },
+        { "description": "Zero external dependencies - uses only Go standard library", "commit": "97d0739" }
       ],
       "added": [
-        { "description": "Repository scanner that checks for uncommitted changes using `git status --porcelain`" },
-        { "description": "Replace directive detection in go.mod files (both single-line and block format)" },
-        { "description": "Module name mismatch detection comparing go.mod module path with directory name" },
-        { "description": "Dependency filtering with `-dep` flag to find repos depending on a specific module" },
-        { "description": "Recursive nested go.mod search with `-recurse` flag for monorepo support" },
-        { "description": "Progress bar with percentage, count, and current repo name during scanning" },
-        { "description": "Two output formats: human-readable list (default) and compact markdown table" },
-        { "description": "Summary statistics showing counts of uncommitted changes, replace directives, and mismatches" },
-        { "description": "Tilde expansion for home directory paths" },
-        { "description": "Support for positional argument or `-dir` flag for directory path" }
+        { "description": "Repository scanner that checks for uncommitted changes using `git status --porcelain`", "commit": "97d0739" },
+        { "description": "Replace directive detection in go.mod files (both single-line and block format)", "commit": "97d0739" },
+        { "description": "Module name mismatch detection comparing go.mod module path with directory name", "commit": "97d0739" },
+        { "description": "Dependency filtering with `-dep` flag to find repos depending on a specific module", "commit": "97d0739" },
+        { "description": "Recursive nested go.mod search with `-recurse` flag for monorepo support", "commit": "97d0739" },
+        { "description": "Progress bar with percentage, count, and current repo name during scanning", "commit": "97d0739" },
+        { "description": "Two output formats: human-readable list (default) and compact markdown table", "commit": "97d0739" },
+        { "description": "Summary statistics showing counts of uncommitted changes, replace directives, and mismatches", "commit": "97d0739" },
+        { "description": "Tilde expansion for home directory paths", "commit": "97d0739" },
+        { "description": "Support for positional argument or `-dir` flag for directory path", "commit": "97d0739" }
       ],
       "documentation": [
-        { "description": "README with installation, usage, flags reference, and examples" },
-        { "description": "MIT license" }
+        { "description": "README with installation, usage, flags reference, and examples", "commit": "b4bb43e" },
+        { "description": "MIT license", "commit": "b4bb43e" }
       ]
     }
   ]
