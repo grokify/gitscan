@@ -1,9 +1,9 @@
 {
-  "ir_version": "1.0",
+  "irVersion": "1.0",
   "project": "gitscan",
   "repository": "https://github.com/grokify/gitscan",
   "versioning": "semver",
-  "commit_convention": "conventional",
+  "commitConvention": "conventional",
   "maintainers": ["grokify"],
   "releases": [
     {
@@ -12,7 +12,7 @@
       "highlights": [
         { "description": "New `order` subcommand for topological dependency ordering", "commit": "104f2a2" },
         { "description": "Time-based filtering with `-since` flag", "commit": "33af0ef" },
-        { "description": "Parallel scanning for significantly faster performance", "commit": "7f8ff17" }
+        { "description": "Parallel scanning with 50% faster performance", "commit": "7f8ff17" }
       ],
       "added": [
         { "description": "New `order` subcommand to show repos in dependency order (update dependencies first)", "commit": "104f2a2" },
@@ -32,9 +32,17 @@
         { "description": "Output now shows numbered list with alphabetical sorting", "commit": "33af0ef" },
         { "description": "Refactored scanner package with `ScanOptions` for configurable behavior", "commit": "7f8ff17" }
       ],
+      "performance": [
+        { "description": "Optimized git status to single command per repo (was 2-3 commands)", "commit": "6e88de7" },
+        { "description": "Scan time reduced by ~50% (6.7s → 3.4s for 600 repos)", "commit": "6e88de7" }
+      ],
       "dependencies": [
         { "description": "Added `github.com/spf13/cobra` for CLI framework", "commit": "33af0ef" },
         { "description": "Added `github.com/grokify/mogo/fmt/progress` for progress bar rendering", "commit": "9c27c2a" }
+      ],
+      "documentation": [
+        { "description": "Updated README with order subcommand, new flags, and performance section", "commit": "e319764" },
+        { "description": "Added RELEASE_NOTES_v0.2.0.md", "commit": "e319764" }
       ]
     },
     {
