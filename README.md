@@ -40,6 +40,7 @@ gitscan -d <directory>
 | `--dep` | | (none) | Filter repos by dependency (module path) |
 | `--show-clean` | | `false` | Show repos with no issues |
 | `--summary` | | `true` | Show summary at the end |
+| `--go-git` | | `false` | Use go-git library instead of git CLI |
 | `--help` | `-h` | | Show help |
 | `--version` | `-v` | | Show version |
 
@@ -78,6 +79,7 @@ gitscan order <directory>
 | `--since` | `-s` | (none) | Filter repos modified within duration |
 | `--transitive` | `-t` | `false` | Include repos that transitively depend on modified repos |
 | `--unpushed` | `-u` | `false` | Only show repos with uncommitted changes or unpushed commits |
+| `--go-git` | | `false` | Use go-git library instead of git CLI |
 
 ### Order Examples
 
@@ -183,6 +185,17 @@ gitscan --dep github.com/grokify/mogo -f table ~/go/src/github.com/grokify
 ## Performance
 
 gitscan uses parallel scanning with a goroutine worker pool (defaults to GOMAXPROCS workers) for fast scanning of large directory trees. Expensive operations like modification time calculation and unpushed commit detection are performed lazily only when needed.
+
+### Git Backend Options
+
+By default, gitscan uses the git CLI for repository status checks, which is fast and compatible with all git configurations. An optional `--go-git` flag enables the go-git library backend (pure Go, no process spawning):
+
+| Backend | Speed | Compatibility |
+|---------|-------|---------------|
+| git CLI (default) | Fast (~2.5s for 600 repos) | Full compatibility |
+| go-git (`--go-git`) | Slower (~10s for 600 repos) | Pure Go, no external deps |
+
+The git CLI backend is recommended for most use cases. Use `--go-git` in environments where the git binary is unavailable.
 
 ## Use Cases
 
