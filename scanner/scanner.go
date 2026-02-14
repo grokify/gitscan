@@ -5,8 +5,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
+	"sync"
+	"time"
 )
 
 // GoModResult holds analysis results for a single go.mod file.
@@ -24,12 +27,14 @@ type RepoResult struct {
 	IsGitRepo             bool
 	HasGoMod              bool
 	HasUncommittedChanges bool
+	HasUnpushedCommits    bool
 	HasReplaceDirectives  bool
 	HasModuleMismatch     bool
 	ModuleName            string
 	ReplaceCount          int
 	Dependencies          []string      // Dependencies from root go.mod
 	GoModFiles            []GoModResult // All go.mod files (when recurse=true)
+	LatestModTime         time.Time     // Most recent file modification time
 }
 
 // HasDependency checks if the repo depends on the given module path.
@@ -48,12 +53,29 @@ func (r RepoResult) HasDependency(modulePath string) bool {
 	return false
 }
 
+// ModifiedSince returns true if the repo has files modified within the given duration.
+func (r RepoResult) ModifiedSince(d time.Duration) bool {
+	if r.LatestModTime.IsZero() {
+		return false
+	}
+	cutoff := time.Now().Add(-d)
+	return r.LatestModTime.After(cutoff)
+}
+
+// NeedsPush returns true if the repo has uncommitted changes or unpushed commits.
+func (r RepoResult) NeedsPush() bool {
+	return r.HasUncommittedChanges || r.HasUnpushedCommits
+}
+
 // ProgressFunc is called during scanning with current progress.
 type ProgressFunc func(current, total int, name string)
 
 // ScanOptions configures the scanning behavior.
 type ScanOptions struct {
-	Recurse bool // Search for nested go.mod files
+	Recurse       bool // Search for nested go.mod files
+	CheckModTime  bool // Compute latest modification time (expensive)
+	CheckUnpushed bool // Check for unpushed commits
+	Workers       int  // Number of parallel workers (0 = GOMAXPROCS)
 }
 
 // CountDirectories counts the number of scannable directories.
@@ -101,16 +123,69 @@ func ScanDirectoryWithProgress(dirPath string, progressFn ProgressFunc, opts Sca
 	}
 
 	total := len(dirs)
-	var results []RepoResult
 
-	for i, entry := range dirs {
-		if progressFn != nil {
-			progressFn(i+1, total, entry.Name())
+	// Determine number of workers
+	numWorkers := opts.Workers
+	if numWorkers <= 0 {
+		numWorkers = runtime.GOMAXPROCS(0)
+	}
+	// Don't use more workers than directories
+	if numWorkers > total {
+		numWorkers = total
+	}
+	if numWorkers < 1 {
+		numWorkers = 1
+	}
+
+	// Create work channel and results channel
+	type workItem struct {
+		index int
+		entry os.DirEntry
+	}
+	type resultItem struct {
+		index  int
+		result RepoResult
+	}
+
+	workCh := make(chan workItem, total)
+	resultCh := make(chan resultItem, total)
+
+	// Start workers
+	var wg sync.WaitGroup
+	for range numWorkers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for work := range workCh {
+				subPath := filepath.Join(dirPath, work.entry.Name())
+				result := analyzeRepo(subPath, work.entry.Name(), opts)
+				resultCh <- resultItem{index: work.index, result: result}
+			}
+		}()
+	}
+
+	// Send work
+	go func() {
+		for i, entry := range dirs {
+			workCh <- workItem{index: i, entry: entry}
 		}
+		close(workCh)
+	}()
 
-		subPath := filepath.Join(dirPath, entry.Name())
-		result := analyzeRepo(subPath, entry.Name(), opts)
-		results = append(results, result)
+	// Collect results and report progress
+	go func() {
+		wg.Wait()
+		close(resultCh)
+	}()
+
+	results := make([]RepoResult, total)
+	completed := 0
+	for item := range resultCh {
+		results[item.index] = item.result
+		completed++
+		if progressFn != nil {
+			progressFn(completed, total, item.result.Name)
+		}
 	}
 
 	return results, nil
@@ -122,12 +197,21 @@ func analyzeRepo(repoPath, name string, opts ScanOptions) RepoResult {
 		Path: repoPath,
 	}
 
+	// Get latest modification time (only if requested - expensive operation)
+	if opts.CheckModTime {
+		result.LatestModTime = getLatestModTime(repoPath)
+	}
+
 	// Check if it's a git repository
 	result.IsGitRepo = isGitRepo(repoPath)
 
-	// Check for uncommitted changes
+	// Check for uncommitted changes (always needed for basic scanning)
 	if result.IsGitRepo {
 		result.HasUncommittedChanges = hasUncommittedChanges(repoPath)
+		// Check for unpushed commits (only if requested)
+		if opts.CheckUnpushed {
+			result.HasUnpushedCommits = hasUnpushedCommits(repoPath)
+		}
 	}
 
 	// Analyze go.mod at root
@@ -211,6 +295,25 @@ func hasUncommittedChanges(repoPath string) bool {
 		return false
 	}
 	return len(strings.TrimSpace(string(output))) > 0
+}
+
+func hasUnpushedCommits(repoPath string) bool {
+	// Check if there's an upstream branch configured
+	cmd := exec.Command("git", "-C", repoPath, "rev-parse", "--abbrev-ref", "@{upstream}")
+	if err := cmd.Run(); err != nil {
+		// No upstream configured, consider as unpushed if there are any commits
+		return true
+	}
+
+	// Count commits ahead of upstream
+	cmd = exec.Command("git", "-C", repoPath, "rev-list", "--count", "@{upstream}..HEAD")
+	output, err := cmd.Output()
+	if err != nil {
+		return false
+	}
+
+	count := strings.TrimSpace(string(output))
+	return count != "0"
 }
 
 func analyzeGoMod(goModPath string) (moduleName string, replaceCount int, dependencies []string) {
@@ -306,4 +409,200 @@ func moduleMatchesPath(moduleName, dirName string) bool {
 	}
 	lastPart := parts[len(parts)-1]
 	return lastPart == dirName
+}
+
+// GetInternalDeps returns dependencies that are also in the results set (managed modules).
+// It maps from directory name to module name for matching.
+func GetInternalDeps(result RepoResult, allResults []RepoResult) []string {
+	// Build map of module names to directory names
+	moduleToDir := make(map[string]string)
+	for _, r := range allResults {
+		if r.ModuleName != "" {
+			moduleToDir[r.ModuleName] = r.Name
+		}
+	}
+
+	// Find which dependencies are internal
+	var internal []string
+	for _, dep := range result.Dependencies {
+		if dirName, ok := moduleToDir[dep]; ok {
+			internal = append(internal, dirName)
+		}
+	}
+	return internal
+}
+
+// GetTransitiveDependents returns all repos that transitively depend on the given seed repos.
+// This finds repos that may need updating when seed repos are updated.
+func GetTransitiveDependents(seeds []RepoResult, allResults []RepoResult) []RepoResult {
+	// Build module name to result map
+	moduleToResult := make(map[string]*RepoResult)
+	for i := range allResults {
+		if allResults[i].ModuleName != "" {
+			moduleToResult[allResults[i].ModuleName] = &allResults[i]
+		}
+	}
+
+	// Build reverse dependency graph: module -> modules that depend on it
+	dependents := make(map[string][]string)
+	for _, r := range allResults {
+		if r.ModuleName == "" {
+			continue
+		}
+		for _, dep := range r.Dependencies {
+			if _, isManaged := moduleToResult[dep]; isManaged {
+				dependents[dep] = append(dependents[dep], r.ModuleName)
+			}
+		}
+	}
+
+	// BFS to find all transitive dependents
+	seedModules := make(map[string]bool)
+	for _, s := range seeds {
+		if s.ModuleName != "" {
+			seedModules[s.ModuleName] = true
+		}
+	}
+
+	visited := make(map[string]bool)
+	queue := make([]string, 0, len(seedModules))
+	for mod := range seedModules {
+		queue = append(queue, mod)
+		visited[mod] = true
+	}
+
+	for len(queue) > 0 {
+		mod := queue[0]
+		queue = queue[1:]
+
+		for _, dependent := range dependents[mod] {
+			if !visited[dependent] {
+				visited[dependent] = true
+				queue = append(queue, dependent)
+			}
+		}
+	}
+
+	// Collect results for all visited modules
+	var result []RepoResult
+	for _, r := range allResults {
+		if r.ModuleName != "" && visited[r.ModuleName] {
+			result = append(result, r)
+		}
+	}
+
+	return result
+}
+
+// TopologicalSort returns repos in dependency order (dependencies before dependents).
+// Uses Kahn's algorithm. Returns sorted results and any cycles detected.
+func TopologicalSort(results []RepoResult) ([]RepoResult, []string) {
+	// Build map of module names to results
+	moduleToResult := make(map[string]*RepoResult)
+	dirToResult := make(map[string]*RepoResult)
+	for i := range results {
+		if results[i].ModuleName != "" {
+			moduleToResult[results[i].ModuleName] = &results[i]
+		}
+		dirToResult[results[i].Name] = &results[i]
+	}
+
+	// Build adjacency list and in-degree count
+	// Edge A -> B means A depends on B (B must be updated before A)
+	inDegree := make(map[string]int)
+	dependents := make(map[string][]string) // module -> modules that depend on it
+
+	for _, r := range results {
+		if r.ModuleName == "" {
+			continue
+		}
+		inDegree[r.ModuleName] = 0
+	}
+
+	for _, r := range results {
+		if r.ModuleName == "" {
+			continue
+		}
+		for _, dep := range r.Dependencies {
+			if _, isManaged := moduleToResult[dep]; isManaged {
+				inDegree[r.ModuleName]++
+				dependents[dep] = append(dependents[dep], r.ModuleName)
+			}
+		}
+	}
+
+	// Kahn's algorithm
+	var queue []string
+	for mod, deg := range inDegree {
+		if deg == 0 {
+			queue = append(queue, mod)
+		}
+	}
+	// Sort for deterministic output
+	slices.Sort(queue)
+
+	var sorted []RepoResult
+	for len(queue) > 0 {
+		mod := queue[0]
+		queue = queue[1:]
+
+		if r, ok := moduleToResult[mod]; ok {
+			sorted = append(sorted, *r)
+		}
+
+		// Decrease in-degree for dependents
+		deps := dependents[mod]
+		slices.Sort(deps)
+		for _, dep := range deps {
+			inDegree[dep]--
+			if inDegree[dep] == 0 {
+				queue = append(queue, dep)
+			}
+		}
+	}
+
+	// Check for cycles
+	var cycles []string
+	for mod, deg := range inDegree {
+		if deg > 0 {
+			cycles = append(cycles, mod)
+		}
+	}
+
+	return sorted, cycles
+}
+
+// getLatestModTime walks the directory tree and returns the most recent modification time.
+// Skips .git, vendor, and node_modules directories for performance.
+func getLatestModTime(rootPath string) time.Time {
+	var latest time.Time
+
+	_ = filepath.WalkDir(rootPath, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return nil // Skip inaccessible paths
+		}
+
+		// Skip .git, vendor, and node_modules for performance
+		if d.IsDir() {
+			name := d.Name()
+			if name == ".git" || name == "vendor" || name == "node_modules" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+
+		// Get file info for modification time
+		info, err := d.Info()
+		if err != nil {
+			return nil
+		}
+
+		if info.ModTime().After(latest) {
+			latest = info.ModTime()
+		}
+
+		return nil
+	})
+
+	return latest
 }
