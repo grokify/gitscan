@@ -37,6 +37,7 @@ func init() {
 	orderCmd.Flags().StringVarP(&sinceStr, "since", "s", "", "Filter repos modified within duration (e.g., 7d, 14d, 2w, 1m)")
 	orderCmd.Flags().BoolVarP(&includeTransitive, "transitive", "t", false, "Include repos that transitively depend on modified repos")
 	orderCmd.Flags().BoolVarP(&unpushedOnly, "unpushed", "u", false, "Only show repos with uncommitted changes or unpushed commits")
+	orderCmd.Flags().BoolVar(&useGoGit, "go-git", false, "Use go-git library instead of git CLI (pure Go, no process spawning)")
 	rootCmd.AddCommand(orderCmd)
 }
 
@@ -101,10 +102,19 @@ func runOrder(cmd *cobra.Command, args []string) error {
 		renderer.Update(current, total, name)
 	}
 
+	// Select git backend (default: CLI, optional: go-git)
+	var gitBackend scanner.GitBackend
+	if useGoGit {
+		gitBackend = scanner.NewGoGitBackend()
+	} else {
+		gitBackend = scanner.NewCLIGitBackend()
+	}
+
 	opts := scanner.ScanOptions{
 		Recurse:       false,
 		CheckModTime:  true,         // Always need mod time for ordering
 		CheckUnpushed: unpushedOnly, // Only check unpushed if filtering by it
+		GitBackend:    gitBackend,
 	}
 	results, err := scanner.ScanDirectoryWithProgress(absPath, progressFn, opts)
 	if err != nil {

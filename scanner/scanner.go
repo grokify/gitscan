@@ -3,7 +3,6 @@ package scanner
 import (
 	"bufio"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"slices"
@@ -72,10 +71,11 @@ type ProgressFunc func(current, total int, name string)
 
 // ScanOptions configures the scanning behavior.
 type ScanOptions struct {
-	Recurse       bool // Search for nested go.mod files
-	CheckModTime  bool // Compute latest modification time (expensive)
-	CheckUnpushed bool // Check for unpushed commits
-	Workers       int  // Number of parallel workers (0 = GOMAXPROCS)
+	Recurse       bool       // Search for nested go.mod files
+	CheckModTime  bool       // Compute latest modification time (expensive)
+	CheckUnpushed bool       // Check for unpushed commits
+	Workers       int        // Number of parallel workers (0 = GOMAXPROCS)
+	GitBackend    GitBackend // Git backend to use (nil = default go-git backend)
 }
 
 // CountDirectories counts the number of scannable directories.
@@ -202,12 +202,18 @@ func analyzeRepo(repoPath, name string, opts ScanOptions) RepoResult {
 		result.LatestModTime = getLatestModTime(repoPath)
 	}
 
+	// Get git backend (default to go-git)
+	backend := opts.GitBackend
+	if backend == nil {
+		backend = DefaultGitBackend()
+	}
+
 	// Check if it's a git repository
-	result.IsGitRepo = isGitRepo(repoPath)
+	result.IsGitRepo = backend.IsRepo(repoPath)
 
 	// Check git status (uncommitted changes and optionally unpushed commits)
 	if result.IsGitRepo {
-		result.HasUncommittedChanges, result.HasUnpushedCommits = getGitStatus(repoPath, opts.CheckUnpushed)
+		result.HasUncommittedChanges, result.HasUnpushedCommits = backend.GetStatus(repoPath, opts.CheckUnpushed)
 	}
 
 	// Analyze go.mod at root
@@ -272,56 +278,6 @@ func findGoModFiles(rootPath string) []string {
 	})
 
 	return goModFiles
-}
-
-func isGitRepo(path string) bool {
-	gitPath := filepath.Join(path, ".git")
-	info, err := os.Stat(gitPath)
-	if err != nil {
-		return false
-	}
-	return info.IsDir()
-}
-
-// getGitStatus uses a single git command to check both uncommitted changes and unpushed commits.
-// Uses `git status --porcelain -b` which outputs:
-//   - First line: ## branch...upstream [ahead N, behind M]
-//   - Remaining lines: file status (if any uncommitted changes)
-func getGitStatus(repoPath string, checkUnpushed bool) (hasUncommitted, hasUnpushed bool) {
-	cmd := exec.Command("git", "-C", repoPath, "status", "--porcelain", "-b")
-	output, err := cmd.Output()
-	if err != nil {
-		return false, false
-	}
-
-	lines := strings.Split(string(output), "\n")
-	if len(lines) == 0 {
-		return false, false
-	}
-
-	// First line is branch info: ## main...origin/main [ahead 1]
-	branchLine := lines[0]
-
-	// Check for uncommitted changes (any non-empty lines after the first)
-	for _, line := range lines[1:] {
-		if strings.TrimSpace(line) != "" {
-			hasUncommitted = true
-			break
-		}
-	}
-
-	// Check for unpushed commits if requested
-	if checkUnpushed {
-		// Look for [ahead N] in the branch line
-		if strings.Contains(branchLine, "[ahead") {
-			hasUnpushed = true
-		} else if !strings.Contains(branchLine, "...") {
-			// No upstream configured (line is just "## main"), consider as unpushed
-			hasUnpushed = true
-		}
-	}
-
-	return hasUncommitted, hasUnpushed
 }
 
 func analyzeGoMod(goModPath string) (moduleName string, replaceCount int, dependencies []string) {

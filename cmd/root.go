@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	version          = "0.2.0"
+	version          = "0.3.0"
 	progressBarWidth = 40
 )
 
@@ -28,6 +28,7 @@ var (
 	depFilter   string
 	recurse     bool
 	sinceStr    string
+	useGoGit    bool
 )
 
 var rootCmd = &cobra.Command{
@@ -49,6 +50,7 @@ func init() {
 	rootCmd.Flags().StringVar(&depFilter, "dep", "", "Filter repos by dependency (module path)")
 	rootCmd.Flags().BoolVarP(&recurse, "recurse", "r", false, "Recursively search for nested go.mod files")
 	rootCmd.Flags().StringVarP(&sinceStr, "since", "s", "", "Filter repos modified within duration (e.g., 7d, 14d, 2w, 1m)")
+	rootCmd.Flags().BoolVar(&useGoGit, "go-git", false, "Use go-git library instead of git CLI (pure Go, no process spawning)")
 }
 
 // Execute runs the root command
@@ -124,9 +126,18 @@ func runScan(cmd *cobra.Command, args []string) error {
 		renderer.Update(current, total, name)
 	}
 
+	// Select git backend (default: CLI, optional: go-git)
+	var gitBackend scanner.GitBackend
+	if useGoGit {
+		gitBackend = scanner.NewGoGitBackend()
+	} else {
+		gitBackend = scanner.NewCLIGitBackend()
+	}
+
 	opts := scanner.ScanOptions{
 		Recurse:      recurse,
 		CheckModTime: sinceDuration > 0, // Only compute mod time if filtering by it
+		GitBackend:   gitBackend,
 	}
 	results, err := scanner.ScanDirectoryWithProgress(absPath, progressFn, opts)
 	if err != nil {
