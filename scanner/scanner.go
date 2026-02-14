@@ -205,13 +205,9 @@ func analyzeRepo(repoPath, name string, opts ScanOptions) RepoResult {
 	// Check if it's a git repository
 	result.IsGitRepo = isGitRepo(repoPath)
 
-	// Check for uncommitted changes (always needed for basic scanning)
+	// Check git status (uncommitted changes and optionally unpushed commits)
 	if result.IsGitRepo {
-		result.HasUncommittedChanges = hasUncommittedChanges(repoPath)
-		// Check for unpushed commits (only if requested)
-		if opts.CheckUnpushed {
-			result.HasUnpushedCommits = hasUnpushedCommits(repoPath)
-		}
+		result.HasUncommittedChanges, result.HasUnpushedCommits = getGitStatus(repoPath, opts.CheckUnpushed)
 	}
 
 	// Analyze go.mod at root
@@ -287,33 +283,45 @@ func isGitRepo(path string) bool {
 	return info.IsDir()
 }
 
-func hasUncommittedChanges(repoPath string) bool {
-	// Use git status --porcelain to check for changes
-	cmd := exec.Command("git", "-C", repoPath, "status", "--porcelain")
+// getGitStatus uses a single git command to check both uncommitted changes and unpushed commits.
+// Uses `git status --porcelain -b` which outputs:
+//   - First line: ## branch...upstream [ahead N, behind M]
+//   - Remaining lines: file status (if any uncommitted changes)
+func getGitStatus(repoPath string, checkUnpushed bool) (hasUncommitted, hasUnpushed bool) {
+	cmd := exec.Command("git", "-C", repoPath, "status", "--porcelain", "-b")
 	output, err := cmd.Output()
 	if err != nil {
-		return false
-	}
-	return len(strings.TrimSpace(string(output))) > 0
-}
-
-func hasUnpushedCommits(repoPath string) bool {
-	// Check if there's an upstream branch configured
-	cmd := exec.Command("git", "-C", repoPath, "rev-parse", "--abbrev-ref", "@{upstream}")
-	if err := cmd.Run(); err != nil {
-		// No upstream configured, consider as unpushed if there are any commits
-		return true
+		return false, false
 	}
 
-	// Count commits ahead of upstream
-	cmd = exec.Command("git", "-C", repoPath, "rev-list", "--count", "@{upstream}..HEAD")
-	output, err := cmd.Output()
-	if err != nil {
-		return false
+	lines := strings.Split(string(output), "\n")
+	if len(lines) == 0 {
+		return false, false
 	}
 
-	count := strings.TrimSpace(string(output))
-	return count != "0"
+	// First line is branch info: ## main...origin/main [ahead 1]
+	branchLine := lines[0]
+
+	// Check for uncommitted changes (any non-empty lines after the first)
+	for _, line := range lines[1:] {
+		if strings.TrimSpace(line) != "" {
+			hasUncommitted = true
+			break
+		}
+	}
+
+	// Check for unpushed commits if requested
+	if checkUnpushed {
+		// Look for [ahead N] in the branch line
+		if strings.Contains(branchLine, "[ahead") {
+			hasUnpushed = true
+		} else if !strings.Contains(branchLine, "...") {
+			// No upstream configured (line is just "## main"), consider as unpushed
+			hasUnpushed = true
+		}
+	}
+
+	return hasUncommitted, hasUnpushed
 }
 
 func analyzeGoMod(goModPath string) (moduleName string, replaceCount int, dependencies []string) {
