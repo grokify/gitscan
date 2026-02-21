@@ -4,7 +4,7 @@ go 1.25.0
 
 require (
 	github.com/go-git/go-git/v5 v5.16.5
-	github.com/grokify/mogo v0.73.1
+	github.com/grokify/mogo v0.73.2
 	github.com/spf13/cobra v1.10.2
 )
 
