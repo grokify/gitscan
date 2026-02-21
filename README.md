@@ -10,11 +10,20 @@ A CLI tool to scan multiple Git repositories and identify repos that need attent
 
 ## Installation
 
+### Homebrew (macOS/Linux)
+
+```bash
+brew tap grokify/tap
+brew install gitscan
+```
+
+### Go Install
+
 ```bash
 go install github.com/grokify/gitscan@latest
 ```
 
-Or build from source:
+### Build from Source
 
 ```bash
 git clone https://github.com/grokify/gitscan.git
@@ -25,24 +34,27 @@ go build -o gitscan .
 ## Usage
 
 ```bash
-gitscan <directory>
-gitscan -d <directory>
+gitscan <directory>              # Scan for issues
+gitscan since <duration> [dir]   # Filter by modification time
+gitscan dep <module> [dir]       # Filter by dependency
+gitscan order [dir]              # Show repos in dependency order
 ```
 
-### Flags
+### Root Command (Issue Scanning)
+
+Scan repos for uncommitted changes, replace directives, and module mismatches:
+
+```bash
+gitscan ~/go/src/github.com/grokify
+```
 
 | Flag | Short | Default | Description |
 |------|-------|---------|-------------|
 | `--dir` | `-d` | (required) | Directory containing repos to scan |
 | `--format` | `-f` | `list` | Output format: `list` or `table` |
-| `--since` | `-s` | (none) | Filter repos modified within duration (e.g., `7d`, `2w`, `1m`) |
-| `--recurse` | `-r` | `false` | Recursively search for nested go.mod files |
-| `--dep` | | (none) | Filter repos by dependency (module path) |
 | `--show-clean` | | `false` | Show repos with no issues |
 | `--summary` | | `true` | Show summary at the end |
 | `--go-git` | | `false` | Use go-git library instead of git CLI |
-| `--help` | `-h` | | Show help |
-| `--version` | `-v` | | Show version |
 
 ### Examples
 
@@ -50,28 +62,69 @@ gitscan -d <directory>
 # Scan all repos in a directory
 gitscan ~/go/src/github.com/grokify
 
-# Filter repos modified in last 7 days
-gitscan -s 7d ~/go/src/github.com/grokify
-
 # Output as markdown table (compact view)
 gitscan -f table ~/go/src/github.com/grokify
 
 # Show all repos including clean ones
 gitscan --show-clean ~/projects
+```
 
+## Since Subcommand
+
+Filter repos by modification time, with optional dependency filtering:
+
+```bash
+gitscan since <duration> [directory]
+```
+
+| Flag | Short | Default | Description |
+|------|-------|---------|-------------|
+| `--dep` | | (none) | Also filter by dependency (AND logic) |
+| `--recurse` | `-r` | `false` | Check nested go.mod files |
+| `--go-git` | | `false` | Use go-git library instead of git CLI |
+
+Duration formats: `7d` (days), `2w` (weeks), `1m` (months), `24h` (hours)
+
+### Since Examples
+
+```bash
+# Repos modified in last 7 days
+gitscan since 7d ~/go/src/github.com/grokify
+
+# Repos modified in last 7 days AND depending on a module
+gitscan since 7d --dep github.com/grokify/mogo ~/go/src/github.com/grokify
+```
+
+## Dep Subcommand
+
+Filter repos by dependency on a specific module:
+
+```bash
+gitscan dep <module> [directory]
+```
+
+| Flag | Short | Default | Description |
+|------|-------|---------|-------------|
+| `--recurse` | `-r` | `false` | Check nested go.mod files |
+| `--go-git` | | `false` | Use go-git library instead of git CLI |
+
+### Dep Examples
+
+```bash
 # Find repos depending on a module
-gitscan --dep github.com/grokify/mogo ~/go/src/github.com/grokify
+gitscan dep github.com/grokify/mogo ~/go/src/github.com/grokify
+
+# Include nested go.mod files (monorepos)
+gitscan dep github.com/grokify/mogo -r ~/go/src/github.com/grokify
 ```
 
 ## Order Subcommand
 
-The `order` subcommand shows repos in topological dependency order - dependencies first, then dependents. This helps determine the correct order to update and release Go modules.
+Show repos in topological dependency order - dependencies first, then dependents. Helps determine the correct order to update and release Go modules.
 
 ```bash
-gitscan order <directory>
+gitscan order [directory]
 ```
-
-### Order Flags
 
 | Flag | Short | Default | Description |
 |------|-------|---------|-------------|
@@ -173,13 +226,13 @@ When making breaking changes to a library, find all local repos that depend on i
 
 ```bash
 # Find repos depending on a module
-gitscan --dep github.com/grokify/gogithub ~/go/src/github.com/grokify
+gitscan dep github.com/grokify/gogithub ~/go/src/github.com/grokify
 
 # Include nested go.mod files (monorepos, nested modules)
-gitscan --dep github.com/grokify/gogithub -r ~/go/src/github.com/grokify
+gitscan dep github.com/grokify/gogithub -r ~/go/src/github.com/grokify
 
-# Output as table
-gitscan --dep github.com/grokify/mogo -f table ~/go/src/github.com/grokify
+# Find recently modified repos that depend on a module
+gitscan since 7d --dep github.com/grokify/mogo ~/go/src/github.com/grokify
 ```
 
 ## Performance

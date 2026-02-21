@@ -7,6 +7,38 @@
   "maintainers": ["grokify"],
   "releases": [
     {
+      "version": "v0.4.0",
+      "date": "2026-02-21",
+      "highlights": [
+        { "description": "Restructured CLI into focused Cobra subcommands", "commit": "ce196b9" },
+        { "description": "New `since` subcommand with optional `--dep` flag for AND logic", "commit": "ce196b9" },
+        { "description": "New `dep` subcommand for dependency filtering", "commit": "ce196b9" },
+        { "description": "Homebrew distribution via `brew install gitscan`", "commit": "723b458" }
+      ],
+      "added": [
+        { "description": "`since` subcommand: filter repos by modification time with duration argument", "commit": "ce196b9" },
+        { "description": "`dep` subcommand: filter repos by dependency on a specific module", "commit": "ce196b9" },
+        { "description": "`since --dep` flag: combine time and dependency filters with AND logic", "commit": "ce196b9" },
+        { "description": "Shared helpers in `cmd/shared.go`: `resolvePath()`, `createGitBackend()`, `parseDuration()`", "commit": "ce196b9" },
+        { "description": "GoReleaser configuration for cross-platform builds (linux, darwin, windows; amd64, arm64)", "commit": "723b458" },
+        { "description": "GitHub Actions release workflow triggered on version tags", "commit": "723b458" },
+        { "description": "Homebrew formula distribution via `grokify/homebrew-tap`", "commit": "723b458" }
+      ],
+      "changed": [
+        { "description": "Root command now only scans for issues (uncommitted, replace, mismatch)", "commit": "ce196b9" },
+        { "description": "Time filtering moved from `--since` flag to `since` subcommand", "commit": "ce196b9" },
+        { "description": "Dependency filtering moved from `--dep` flag to `dep` subcommand", "commit": "ce196b9" }
+      ],
+      "breaking": [
+        { "description": "`--since` flag removed from root command; use `gitscan since <duration>` instead", "commit": "ce196b9" },
+        { "description": "`--dep` flag removed from root command; use `gitscan dep <module>` instead", "commit": "ce196b9" }
+      ],
+      "documentation": [
+        { "description": "Updated README with Homebrew installation and new subcommand structure", "commit": "" },
+        { "description": "Added RELEASE_NOTES_v0.4.0.md", "commit": "" }
+      ]
+    },
+    {
       "version": "v0.3.0",
       "date": "2026-02-14",
       "highlights": [
