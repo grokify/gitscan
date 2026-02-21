@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -13,6 +12,7 @@ import (
 )
 
 var (
+	orderSinceStr     string
 	includeTransitive bool
 	unpushedOnly      bool
 )
@@ -34,7 +34,7 @@ Use --unpushed to only show repos with uncommitted changes or unpushed commits.`
 
 func init() {
 	orderCmd.Flags().StringVarP(&dirPath, "dir", "d", "", "Directory to scan")
-	orderCmd.Flags().StringVarP(&sinceStr, "since", "s", "", "Filter repos modified within duration (e.g., 7d, 14d, 2w, 1m)")
+	orderCmd.Flags().StringVarP(&orderSinceStr, "since", "s", "", "Filter repos modified within duration (e.g., 7d, 14d, 2w, 1m)")
 	orderCmd.Flags().BoolVarP(&includeTransitive, "transitive", "t", false, "Include repos that transitively depend on modified repos")
 	orderCmd.Flags().BoolVarP(&unpushedOnly, "unpushed", "u", false, "Only show repos with uncommitted changes or unpushed commits")
 	orderCmd.Flags().BoolVar(&useGoGit, "go-git", false, "Use go-git library instead of git CLI (pure Go, no process spawning)")
@@ -53,36 +53,18 @@ func runOrder(cmd *cobra.Command, args []string) error {
 
 	// Parse since duration
 	var sinceDuration time.Duration
-	if sinceStr != "" {
+	if orderSinceStr != "" {
 		var err error
-		sinceDuration, err = parseDuration(sinceStr)
+		sinceDuration, err = parseDuration(orderSinceStr)
 		if err != nil {
-			return fmt.Errorf("invalid duration %q: %v\nValid formats: 7d (days), 2w (weeks), 1m (months), 24h (hours)", sinceStr, err)
+			return fmt.Errorf("invalid duration %q: %v\nValid formats: 7d (days), 2w (weeks), 1m (months), 24h (hours)", orderSinceStr, err)
 		}
 	}
 
-	// Expand ~ to home directory
-	if len(dirPath) > 0 && dirPath[0] == '~' {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return fmt.Errorf("error getting home directory: %w", err)
-		}
-		dirPath = filepath.Join(home, dirPath[1:])
-	}
-
-	// Resolve to absolute path
-	absPath, err := filepath.Abs(dirPath)
+	// Resolve path
+	absPath, err := resolvePath(dirPath)
 	if err != nil {
-		return fmt.Errorf("error resolving path: %w", err)
-	}
-
-	// Check if directory exists
-	info, err := os.Stat(absPath)
-	if err != nil {
-		return fmt.Errorf("error accessing directory: %w", err)
-	}
-	if !info.IsDir() {
-		return fmt.Errorf("%s is not a directory", absPath)
+		return err
 	}
 
 	fmt.Printf("Scanning: %s\n", absPath)
@@ -102,19 +84,11 @@ func runOrder(cmd *cobra.Command, args []string) error {
 		renderer.Update(current, total, name)
 	}
 
-	// Select git backend (default: CLI, optional: go-git)
-	var gitBackend scanner.GitBackend
-	if useGoGit {
-		gitBackend = scanner.NewGoGitBackend()
-	} else {
-		gitBackend = scanner.NewCLIGitBackend()
-	}
-
 	opts := scanner.ScanOptions{
 		Recurse:       false,
 		CheckModTime:  true,         // Always need mod time for ordering
 		CheckUnpushed: unpushedOnly, // Only check unpushed if filtering by it
-		GitBackend:    gitBackend,
+		GitBackend:    createGitBackend(useGoGit),
 	}
 	results, err := scanner.ScanDirectoryWithProgress(absPath, progressFn, opts)
 	if err != nil {
@@ -138,10 +112,10 @@ func runOrder(cmd *cobra.Command, args []string) error {
 			// Expand to include transitive dependents
 			results = scanner.GetTransitiveDependents(filtered, allResults)
 			fmt.Printf("Found %d repos modified within %s, expanded to %d with transitive dependents\n",
-				len(filtered), sinceStr, len(results))
+				len(filtered), orderSinceStr, len(results))
 		} else {
 			results = filtered
-			fmt.Printf("Filtered to %d repos modified within %s\n", len(results), sinceStr)
+			fmt.Printf("Filtered to %d repos modified within %s\n", len(results), orderSinceStr)
 		}
 	}
 
