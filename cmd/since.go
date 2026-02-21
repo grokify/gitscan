@@ -11,16 +11,19 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var sinceDepFilter string
+var (
+	sinceDepFilter    string
+	sinceUnpushedOnly bool
+)
 
 var sinceCmd = &cobra.Command{
 	Use:   "since <duration> [directory]",
 	Short: "Filter repos by modification time",
-	Long: `Filter repositories by modification time with optional dependency filtering.
+	Long: `Filter repositories by modification time with optional dependency and unpushed filtering.
 
 The duration specifies the time window for filtering. Repos modified within
-that duration are shown. When combined with --dep, only repos that are both
-recently modified AND depend on the specified module are shown (AND logic).
+that duration are shown. When combined with --dep and/or --unpushed, filters
+are applied with AND logic.
 
 Duration formats:
   7d   - 7 days
@@ -30,13 +33,15 @@ Duration formats:
 
 Examples:
   gitscan since 7d ~/go/src                          # Modified in last 7 days
-  gitscan since 7d --dep github.com/foo/bar ~/go/src # AND depends on module`,
+  gitscan since 7d --dep github.com/foo/bar ~/go/src # AND depends on module
+  gitscan since 7d -u ~/go/src                       # AND has unpushed changes`,
 	Args: cobra.RangeArgs(1, 2),
 	RunE: runSince,
 }
 
 func init() {
 	sinceCmd.Flags().StringVar(&sinceDepFilter, "dep", "", "Also filter by dependency (AND logic)")
+	sinceCmd.Flags().BoolVarP(&sinceUnpushedOnly, "unpushed", "u", false, "Only show repos with uncommitted changes or unpushed commits")
 	sinceCmd.Flags().BoolVar(&useGoGit, "go-git", false, "Use go-git library instead of git CLI")
 	sinceCmd.Flags().BoolVarP(&recurse, "recurse", "r", false, "Check nested go.mod files")
 	rootCmd.AddCommand(sinceCmd)
@@ -83,9 +88,10 @@ func runSince(cmd *cobra.Command, args []string) error {
 	}
 
 	opts := scanner.ScanOptions{
-		Recurse:      recurse,
-		CheckModTime: true,
-		GitBackend:   createGitBackend(useGoGit),
+		Recurse:       recurse,
+		CheckModTime:  true,
+		CheckUnpushed: sinceUnpushedOnly,
+		GitBackend:    createGitBackend(useGoGit),
 	}
 	results, err := scanner.ScanDirectoryWithProgress(absPath, progressFn, opts)
 	if err != nil {
@@ -109,9 +115,10 @@ func runSince(cmd *cobra.Command, args []string) error {
 
 	// Filter and display
 	var (
-		totalRepos      = len(results)
-		sinceMatchCount int
-		depMatchCount   int
+		totalRepos         = len(results)
+		sinceMatchCount    int
+		depMatchCount      int
+		unpushedMatchCount int
 	)
 
 	rowNum := 0
@@ -130,6 +137,14 @@ func runSince(cmd *cobra.Command, args []string) error {
 				continue
 			}
 			depMatchCount++
+		}
+
+		// Check unpushed filter (AND logic)
+		if sinceUnpushedOnly {
+			if !result.NeedsPush() {
+				continue
+			}
+			unpushedMatchCount++
 		}
 
 		rowNum++
@@ -153,10 +168,17 @@ func runSince(cmd *cobra.Command, args []string) error {
 	// Summary
 	fmt.Println()
 	fmt.Println("----------------------------------------")
-	if sinceDepFilter != "" {
+	switch {
+	case sinceDepFilter != "" && sinceUnpushedOnly:
+		fmt.Printf("Summary: %d repos scanned, %d modified within %s, %d depend on %s, %d with unpushed changes\n",
+			totalRepos, sinceMatchCount, sinceStr, depMatchCount, sinceDepFilter, unpushedMatchCount)
+	case sinceDepFilter != "":
 		fmt.Printf("Summary: %d repos scanned, %d modified within %s, %d also depend on %s\n",
 			totalRepos, sinceMatchCount, sinceStr, depMatchCount, sinceDepFilter)
-	} else {
+	case sinceUnpushedOnly:
+		fmt.Printf("Summary: %d repos scanned, %d modified within %s, %d with unpushed changes\n",
+			totalRepos, sinceMatchCount, sinceStr, unpushedMatchCount)
+	default:
 		fmt.Printf("Summary: %d repos scanned, %d modified within %s\n",
 			totalRepos, sinceMatchCount, sinceStr)
 	}
